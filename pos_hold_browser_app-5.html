@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Hold System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .settings-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .settings-bar label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .settings-bar select {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: white;
+            border: none;
+            padding: 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: left;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn h3 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .btn p {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .hold-id-display {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .hold-id-display strong {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-save {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #5568d3;
+        }
+
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #d0d0d0;
+        }
+
+        .holds-table {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .holds-table h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-picked {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .receipt-preview {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            background: white;
+            width: 200px;
+            margin: 20px auto;
+        }
+
+        .receipt-title {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .receipt-details {
+            font-size: 12px;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .receipt-preview, .receipt-preview * {
+                visibility: visible;
+            }
+            .receipt-preview {
+                position: absolute;
+                left: 0;
+                top: 0;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏪 POS Hold System</h1>
+            <p class="subtitle">Thrift Store Hold Management</p>
+        </div>
+
+        <div class="settings-bar">
+            <label for="printMode">Print Mode:</label>
+            <select id="printMode">
+                <option value="pdf">PDF Mode (Testing)</option>
+                <option value="print">Browser Print (Production)</option>
+            </select>
+            <span id="modeIndicator" style="color: #667eea; font-weight: 600;">📄 Testing Mode</span>
+            
+            <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+                <span id="syncStatus" style="color: #999;">⚠️ Not Connected</span>
+                <button class="btn-cancel" style="padding: 8px 15px;" onclick="openSetupModal()">Setup Google Sheets</button>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="openNewHoldModal()">
+                <h3>➕ Create New Hold</h3>
+                <p>Press this button or type F10</p>
+            </button>
+            <button class="btn" onclick="openSearchModal()">
+                <h3>🔍 Search by Phone</h3>
+                <p>Find customer holds</p>
+            </button>
+            <button class="btn" onclick="openScanModal()">
+                <h3>📷 Scan QR Code</h3>
+                <p>Look up hold by scanning</p>
+            </button>
+        </div>
+
+        <div class="holds-table">
+            <h2>Recent Holds</h2>
+            <div class="search-box">
+                <input type="text" id="quickSearch" placeholder="Quick search by name, phone, or hold #..." oninput="filterHolds()">
+            </div>
+            <table id="holdsTable">
+                <thead>
+                    <tr>
+                        <th>Hold #</th>
+                        <th>Customer</th>
+                        <th>Phone</th>
+                        <th>Items</th>
+                        <th>Pickup Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="holdsBody">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- New Hold Modal -->
+    <div id="newHoldModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Hold</h2>
+                <button class="close-btn" onclick="closeModal('newHoldModal')">&times;</button>
+            </div>
+            <div class="hold-id-display">
+                <strong id="generatedHoldId">20250117-001</strong>
+            </div>
+            <form id="newHoldForm" onsubmit="createHold(event)">
+                <div class="form-group">
+                    <label>Customer Name *</label>
+                    <input type="text" id="customerName" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="customerPhone" required placeholder="(541) 555-0123">
+                </div>
+                <div class="form-group">
+                    <label>Quantity *</label>
+                    <input type="number" id="quantity" required min="1">
+                </div>
+                <div class="form-group">
+                    <label>Pickup Date *</label>
+                    <input type="date" id="pickupDate" required>
+                </div>
+                <div class="action-buttons">
+                    <button type="submit" class="btn-save">Create & Print</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('newHoldModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Search by Phone</h2>
+                <button class="close-btn" onclick="closeModal('searchModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <input type="tel" id="searchPhone" placeholder="Enter phone number">
+            </div>
+            <div id="searchResults"></div>
+        </div>
+    </div>
+
+    <!-- Scan Modal -->
+    <div id="scanModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Scan QR Code</h2>
+                <button class="close-btn" onclick="closeModal('scanModal')">&times;</button>
+            </div>
+            <div class="alert alert-info">
+                Enter the Hold # manually or use a barcode scanner
+            </div>
+            <div class="form-group">
+                <input type="text" id="scanInput" placeholder="Hold # (e.g., 20250117-001)" autofocus>
+            </div>
+            <button class="btn-save" style="width: 100%;" onclick="lookupHold()">Lookup Hold</button>
+        </div>
+    </div>
+
+    <!-- Hold Details Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Hold Details</h2>
+                <button class="close-btn" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+            <div id="holdDetails"></div>
+        </div>
+    </div>
+
+    <!-- Setup Modal -->
+    <div id="setupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Google Sheets Setup</h2>
+                <button class="close-btn" onclick="closeModal('setupModal')">&times;</button>
+            </div>
+            <div class="alert alert-info">
+                <strong>Step 1:</strong> Deploy the Google Apps Script<br>
+                <strong>Step 2:</strong> Paste the Web App URL below
+            </div>
+            <div class="form-group">
+                <label>Google Apps Script Web App URL</label>
+                <input type="url" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/...">
+            </div>
+            <div class="action-buttons">
+                <button class="btn-save" onclick="saveScriptUrl()">Connect</button>
+                <button class="btn-cancel" onclick="closeModal('setupModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google Apps Script Web App URL
+        let SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2vutQgHj-0nrTuLNn6Yrr7S88eAAJZIlpKZoRx36Gr_s-C88PIc_NGj06ad9nzA/exec';
+
+        // Local storage for holds (as backup)
+        let holds = JSON.parse(localStorage.getItem('holds') || '[]');
+        let syncEnabled = true;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSyncConnection();
+            loadHolds();
+            renderHoldsTable();
+            
+            // F10 hotkey
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F10') {
+                    e.preventDefault();
+                    openNewHoldModal();
+                }
+            });
+
+            // Print mode selector
+            document.getElementById('printMode').addEventListener('change', updatePrintMode);
+            updatePrintMode();
+        });
+
+        function updatePrintMode() {
+            const mode = document.getElementById('printMode').value;
+            const indicator = document.getElementById('modeIndicator');
+            if (mode === 'pdf') {
+                indicator.textContent = '📄 Testing Mode';
+                indicator.style.color = '#667eea';
+            } else {
+                indicator.textContent = '🖨️ Production Mode';
+                indicator.style.color = '#28a745';
+            }
+        }
+
+        function generateHoldId() {
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0,10).replace(/-/g, '');
+            const todayHolds = holds.filter(h => h.id.startsWith(dateStr));
+            const nextNum = (todayHolds.length + 1).toString().padStart(3, '0');
+            return `${dateStr}-${nextNum}`;
+        }
+
+        function openNewHoldModal() {
+            document.getElementById('generatedHoldId').textContent = generateHoldId();
+            document.getElementById('newHoldModal').classList.add('active');
+            document.getElementById('customerName').focus();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function createHold(event) {
+            event.preventDefault();
+            
+            const hold = {
+                id: document.getElementById('generatedHoldId').textContent,
+                customer: document.getElementById('customerName').value,
+                phone: document.getElementById('customerPhone').value,
+                quantity: parseInt(document.getElementById('quantity').value),
+                pickupDate: document.getElementById('pickupDate').value,
+                created: new Date().toISOString(),
+                pickedUp: false
+            };
+
+            holds.push(hold);
+            saveHolds();
+            
+            // Sync to Google Sheets
+            syncToGoogleSheets('addHold', { hold });
+            
+            // Generate receipts
+            generateReceipts(hold);
+            
+            // Reset form
+            document.getElementById('newHoldForm').reset();
+            closeModal('newHoldModal');
+            renderHoldsTable();
+            
+            alert('Hold created successfully!');
+        }
+
+        function generateReceipts(hold) {
+            const mode = document.getElementById('printMode').value;
+            const quantity = hold.quantity;
+
+            // Generate SOLD tags
+            for (let i = 0; i < quantity; i++) {
+                const receipt = createSOLDReceipt(hold);
+                if (mode === 'print') {
+                    printReceipt(receipt);
+                } else {
+                    downloadPDF(receipt, `${hold.id}_SOLD_${i+1}.pdf`);
+                }
+            }
+
+            // Generate customer ticket
+            const customerReceipt = createCustomerReceipt(hold);
+            if (mode === 'print') {
+                printReceipt(customerReceipt);
+            } else {
+                downloadPDF(customerReceipt, `${hold.id}_CUSTOMER.pdf`);
+            }
+        }
+
+        function createSOLDReceipt(hold) {
+            const div = document.createElement('div');
+            div.className = 'receipt-preview';
+            div.innerHTML = `
+                <div class="receipt-title">SOLD</div>
+                <div class="receipt-details">
+                    <div><strong>Hold #:</strong> ${hold.id}</div>
+                    <div><strong>Quantity:</strong> ${hold.quantity}</div>
+                    <div><strong>Pickup:</strong> ${new Date(hold.pickupDate).toLocaleDateString()}</div>
+                </div>
+                <div class="qr-container" id="qr-${hold.id}"></div>
+            `;
+            document.body.appendChild(div);
+            
+            new QRCode(div.querySelector('.qr-container'), {
+                text: hold.id,
+                width: 100,
+                height: 100
+            });
+
+            return div;
+        }
+
+        function createCustomerReceipt(hold) {
+            const div = document.createElement('div');
+            div.className = 'receipt-preview';
+            div.innerHTML = `
+                <div style="font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 10px;">Hold Ticket</div>
+                <hr style="margin: 10px 0;">
+                <div class="receipt-details">
+                    <div><strong>Hold #:</strong> ${hold.id}</div>
+                    <div><strong>Name:</strong> ${hold.customer}</div>
+                    <div><strong>Phone:</strong> ${hold.phone}</div>
+                    <div><strong>Items:</strong> ${hold.quantity}</div>
+                    <div><strong>Pickup:</strong> ${new Date(hold.pickupDate).toLocaleDateString()}</div>
+                    <div style="margin-top: 10px; font-style: italic; font-size: 10px;">Please bring this ticket when picking up items</div>
+                </div>
+                <div class="qr-container" id="qr-customer-${hold.id}"></div>
+            `;
+            document.body.appendChild(div);
+            
+            new QRCode(div.querySelector('.qr-container'), {
+                text: hold.id,
+                width: 120,
+                height: 120
+            });
+
+            return div;
+        }
+
+        function printReceipt(element) {
+            window.print();
+            setTimeout(() => {
+                document.body.removeChild(element);
+            }, 1000);
+        }
+
+        function downloadPDF(element, filename) {
+            html2canvas(element).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jspdf.jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: [58, 100]
+                });
+                pdf.addImage(imgData, 'PNG', 0, 0, 58, 100);
+                pdf.save(filename);
+                document.body.removeChild(element);
+            });
+        }
+
+        function renderHoldsTable() {
+            const tbody = document.getElementById('holdsBody');
+            tbody.innerHTML = '';
+
+            holds.slice().reverse().forEach(hold => {
+                const row = tbody.insertRow();
+                row.onclick = () => showHoldDetails(hold);
+                row.innerHTML = `
+                    <td>${hold.id}</td>
+                    <td>${hold.customer}</td>
+                    <td>${hold.phone}</td>
+                    <td>${hold.quantity}</td>
+                    <td>${new Date(hold.pickupDate).toLocaleDateString()}</td>
+                    <td><span class="status-badge ${hold.pickedUp ? 'status-picked' : 'status-active'}">
+                        ${hold.pickedUp ? 'Picked Up' : 'Active'}
+                    </span></td>
+                `;
+            });
+        }
+
+        function showHoldDetails(hold) {
+            const details = document.getElementById('holdDetails');
+            details.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="margin-bottom: 10px;"><strong>Hold #:</strong> ${hold.id}</div>
+                    <div style="margin-bottom: 10px;"><strong>Customer:</strong> ${hold.customer}</div>
+                    <div style="margin-bottom: 10px;"><strong>Phone:</strong> ${hold.phone}</div>
+                    <div style="margin-bottom: 10px;"><strong>Quantity:</strong> ${hold.quantity}</div>
+                    <div style="margin-bottom: 10px;"><strong>Pickup Date:</strong> ${new Date(hold.pickupDate).toLocaleDateString()}</div>
+                    <div style="margin-bottom: 10px;"><strong>Status:</strong> ${hold.pickedUp ? 'Picked Up' : 'Active'}</div>
+                </div>
+                ${!hold.pickedUp ? `
+                    <button class="btn-save" style="width: 100%;" onclick="markPickedUp('${hold.id}')">Mark as Picked Up</button>
+                ` : ''}
+            `;
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function markPickedUp(holdId) {
+            const hold = holds.find(h => h.id === holdId);
+            if (hold && confirm(`Mark hold ${holdId} as picked up?`)) {
+                hold.pickedUp = true;
+                hold.pickedUpTime = new Date().toISOString();
+                saveHolds();
+                
+                // Sync to Google Sheets
+                syncToGoogleSheets('markPickedUp', { holdId });
+                
+                closeModal('detailModal');
+                renderHoldsTable();
+                alert('Hold marked as picked up!');
+            }
+        }
+
+        function openSearchModal() {
+            document.getElementById('searchModal').classList.add('active');
+            document.getElementById('searchPhone').focus();
+            document.getElementById('searchPhone').oninput = searchByPhone;
+        }
+
+        function searchByPhone() {
+            const phone = document.getElementById('searchPhone').value;
+            const results = holds.filter(h => h.phone.includes(phone));
+            const resultsDiv = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No holds found</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = results.map(hold => `
+                <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer;" onclick='showHoldDetails(${JSON.stringify(hold)})'>
+                    <strong>${hold.id}</strong> - ${hold.customer}<br>
+                    <small>${hold.quantity} items • ${new Date(hold.pickupDate).toLocaleDateString()}</small>
+                    <span class="status-badge ${hold.pickedUp ? 'status-picked' : 'status-active'}" style="float: right;">
+                        ${hold.pickedUp ? 'Picked Up' : 'Active'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function openScanModal() {
+            document.getElementById('scanModal').classList.add('active');
+            document.getElementById('scanInput').focus();
+        }
+
+        function lookupHold() {
+            const holdId = document.getElementById('scanInput').value.trim();
+            const hold = holds.find(h => h.id === holdId);
+            
+            if (hold) {
+                closeModal('scanModal');
+                showHoldDetails(hold);
+            } else {
+                alert(`Hold ${holdId} not found!`);
+            }
+        }
+
+        function filterHolds() {
+            const search = document.getElementById('quickSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#holdsBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+
+        function saveHolds() {
+            localStorage.setItem('holds', JSON.stringify(holds));
+        }
+
+        async function loadHolds() {
+            // Try to sync from Google Sheets first
+            if (syncEnabled && SCRIPT_URL) {
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ action: 'getHolds' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        holds = data.holds;
+                        localStorage.setItem('holds', JSON.stringify(holds));
+                        updateSyncStatus(true);
+                    }
+                } catch (error) {
+                    console.error('Failed to load from Google Sheets:', error);
+                    // Fall back to local storage
+                    holds = JSON.parse(localStorage.getItem('holds') || '[]');
+                    updateSyncStatus(false);
+                }
+            } else {
+                // Load from localStorage
+                holds = JSON.parse(localStorage.getItem('holds') || '[]');
+            }
+            renderHoldsTable();
+        }
+
+        async function syncToGoogleSheets(action, data) {
+            if (!syncEnabled || !SCRIPT_URL) {
+                console.log('Sync disabled or no URL');
+                return false;
+            }
+
+            console.log('Syncing to Google Sheets:', action, data);
+
+            try {
+                const payload = { action, ...data };
+                console.log('Sending payload:', payload);
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response data:', result);
+                
+                updateSyncStatus(result.success);
+                
+                if (!result.success) {
+                    console.error('Sync failed:', result.error);
+                    alert('Sync failed: ' + result.error);
+                }
+                
+                return result.success;
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateSyncStatus(false);
+                alert('Sync error: ' + error.message);
+                return false;
+            }
+        }
+
+        function checkSyncConnection() {
+            SCRIPT_URL = localStorage.getItem('scriptUrl') || '';
+            syncEnabled = !!SCRIPT_URL;
+            updateSyncStatus(syncEnabled);
+        }
+
+        function updateSyncStatus(connected) {
+            const status = document.getElementById('syncStatus');
+            if (connected) {
+                status.textContent = '✅ Connected to Google Sheets';
+                status.style.color = '#28a745';
+            } else {
+                status.textContent = '⚠️ Not Connected';
+                status.style.color = '#999';
+            }
+        }
+
+        function openSetupModal() {
+            document.getElementById('scriptUrlInput').value = SCRIPT_URL;
+            document.getElementById('setupModal').classList.add('active');
+        }
+
+        function saveScriptUrl() {
+            const url = document.getElementById('scriptUrlInput').value.trim();
+            if (!url) {
+                alert('Please enter a valid URL');
+                return;
+            }
+
+            SCRIPT_URL = url;
+            localStorage.setItem('scriptUrl', url);
+            syncEnabled = true;
+            
+            closeModal('setupModal');
+            updateSyncStatus(true);
+            
+            // Try to sync immediately
+            loadHolds();
+            alert('Connected! Syncing with Google Sheets...');
+        }
+    </script>
+</body>
+</html>
