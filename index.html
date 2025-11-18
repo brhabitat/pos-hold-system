@@ -806,16 +806,20 @@
             // Try to sync from Google Sheets first
             if (syncEnabled && SCRIPT_URL) {
                 try {
+                    // Use a workaround: create a form and submit to avoid CORS preflight
+                    const formData = new FormData();
+                    formData.append('action', 'getHolds');
+                    
                     const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
-                        mode: 'cors',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ action: 'getHolds' })
+                        body: formData,
+                        redirect: 'follow'
                     });
                     
-                    const data = await response.json();
+                    const text = await response.text();
+                    console.log('Raw response:', text);
+                    
+                    const data = JSON.parse(text);
                     
                     if (data.success) {
                         holds = data.holds;
@@ -844,20 +848,27 @@
             console.log('Syncing to Google Sheets:', action, data);
 
             try {
-                const payload = { action, ...data };
-                console.log('Sending payload:', payload);
+                // Use FormData to avoid CORS preflight
+                const formData = new FormData();
+                formData.append('action', action);
+                
+                if (action === 'addHold') {
+                    formData.append('hold', JSON.stringify(data.hold));
+                } else if (action === 'markPickedUp') {
+                    formData.append('holdId', data.holdId);
+                }
                 
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload)
+                    body: formData,
+                    redirect: 'follow'
                 });
 
                 console.log('Response status:', response.status);
-                const result = await response.json();
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                const result = JSON.parse(text);
                 console.log('Response data:', result);
                 
                 updateSyncStatus(result.success);
